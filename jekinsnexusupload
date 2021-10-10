@@ -1,0 +1,75 @@
+pipeline{
+    agent any
+    parameters {
+      choice choices: ['DEV', 'UIT', 'PROD'], name: 'ENV_NAME'
+      string defaultValue: 'master', name: 'BRANCH_NAME'
+    }
+    options {
+      buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '30', numToKeepStr: '10')
+      timestamps()
+      disableConcurrentBuilds()
+    }
+    tools {
+      jdk 'java8'
+      git 'git'
+      maven 'maven'
+    }
+    stages {
+        stage('CODE_CHECKOUT') {
+            steps{
+                git branch: '$BRANCH_NAME', credentialsId: 'github', url: 'https://github.com/prudhvireddy1/PetClinic.git'
+            }
+    
+        }
+    
+        stage('BUILD_CODE & SONARQUBE'){
+            parallel {
+                stage('maven build') {
+                    steps{
+                    sh "mvn package"
+                    }
+                }
+                stage('SonarQube') {
+                    steps{
+                    echo "hello"
+                    }    
+                }
+            }
+            
+            
+            
+        }
+        
+        stage('upload artifact to nexus'){
+            steps{
+                 script{
+                     def pom = readMavenPom file: 'pom.xml'
+
+              nexusArtifactUploader artifacts: [
+                  [
+                      artifactId: "${pom.artifactId}", 
+                      classifier: '',
+                      file: 'target/petclinic.war',
+                      type: 'war'
+                      ]
+                 ],
+                      credentialsId: 'nexus', 
+                      groupId: "${pom.groupId}", 
+                      nexusUrl: '52.15.115.47:8081',
+                      nexusVersion: 'nexus2', 
+                      protocol: 'http', 
+                      repository: 'http://52.15.115.47:8081/repository/petclinc/', 
+                      version: "${pom.version}" 
+                 }
+                      
+            }
+        }
+        
+    }
+    
+    
+    
+    
+    
+    
+}
