@@ -1,0 +1,62 @@
+pipeline{
+    agent any
+    parameters {
+      choice choices: ['DEV', 'UIT', 'PROD'], name: 'ENV_NAME'
+      string defaultValue: 'master', name: 'BRANCH_NAME'
+    }
+    options {
+      buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '30', numToKeepStr: '10')
+      timestamps()
+      disableConcurrentBuilds()
+    }
+    tools {
+      jdk 'java8'
+      git 'git'
+      maven 'maven'
+    }
+    stages {
+        stage('CODE_CHECKOUT') {
+            steps{
+                git branch: '$BRANCH_NAME', credentialsId: 'github', url: 'https://github.com/prudhvireddy1/PetClinic.git'
+            }
+    
+        }
+    
+        stage('BUILD_CODE & SONARQUBE'){
+            parallel {
+                stage('maven build') {
+                    steps{
+                    sh "mvn package"
+                    }
+                }
+                stage('SonarQube') {
+                    steps{
+                    echo "hello"
+                    }    
+                }
+            }
+            
+            
+            
+        }
+        
+        stage('upload artifact to nexus'){
+            steps{
+                 
+                sh '''
+                curl -u admin:admin123 POST "http://52.15.115.47:8081/service/rest/v1/components?repository=petclinic" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "maven2.groupId=org.springframework.samples" -F "maven2.artifactId=petclinic" -F "maven2.version=${BUILD_ID}.0.0" -F "maven2.asset1=@${WORKSPACE}/target/petclinic.war" -F "maven2.asset1.extension=war"
+                '''
+              
+                 
+                      
+            }
+        }
+        
+    }
+    
+    
+    
+    
+    
+    
+}
